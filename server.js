@@ -1,18 +1,60 @@
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
-const app = express();
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
-const { exec } = require('child_process');
+const compression = require('compression');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const morgan = require('morgan');
+require('dotenv').config();
+
+const app = express();
+
+// Configurações da aplicação
+const APP_CONFIG = {
+    name: process.env.APP_NAME || 'Totem Digital',
+    version: process.env.APP_VERSION || '1.0.0',
+    domain: process.env.APP_DOMAIN || 'http://localhost:3000',
+    uploadDir: process.env.UPLOAD_DIR || 'midia',
+    maxFileSize: parseInt(process.env.MAX_FILE_SIZE) || 52428800 // 50MB
+};
+
+// Configurações de segurança
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "blob:"],
+            mediaSrc: ["'self'", "data:", "blob:"],
+        },
+    },
+}));
+
+// Rate limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    max: 100 // limite de 100 requisições por IP
+});
+app.use(limiter);
 
 // Configuração de CORS
 app.use(cors({
-    origin: '*',
+    origin: process.env.CORS_ENABLED === 'true' 
+        ? [APP_CONFIG.domain]
+        : '*',
     methods: ['GET', 'POST', 'DELETE'],
-    allowedHeaders: ['Content-Type']
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Compressão
+app.use(compression());
+
+// Logging
+app.use(morgan('combined'));
 
 // Middleware para logging de requisições
 const requestLogs = [];
@@ -38,7 +80,7 @@ app.use(express.static(path.join(__dirname)));
 // Configuração do multer para upload de arquivos
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        const mediaDir = path.join(__dirname, 'midia');
+        const mediaDir = path.join(__dirname, APP_CONFIG.uploadDir);
         if (!fs.existsSync(mediaDir)) {
             fs.mkdirSync(mediaDir, { recursive: true });
         }
@@ -46,7 +88,7 @@ const storage = multer.diskStorage({
     },
     filename: function (req, file, cb) {
         const prefix = 'midia-';
-        const mediaDir = path.join(__dirname, 'midia');
+        const mediaDir = path.join(__dirname, APP_CONFIG.uploadDir);
         let counter = 1;
 
         fs.readdir(mediaDir, (err, files) => {
@@ -81,14 +123,51 @@ const upload = multer({
         }
     },
     limits: {
-        fileSize: 50 * 1024 * 1024
+        fileSize: APP_CONFIG.maxFileSize
     }
+});
+
+// Configuração do banco de dados
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+// Rota de health check para o Render
+app.get('/health', (req, res) => {
+    res.status(200).json({ 
+        status: 'ok',
+        app: APP_CONFIG.name,
+        version: APP_CONFIG.version,
+        domain: APP_CONFIG.domain
+    });
+});
+
+// Rota para informações da aplicação
+app.get('/api/info', (req, res) => {
+    res.json({
+        name: APP_CONFIG.name,
+        version: APP_CONFIG.version,
+        domain: APP_CONFIG.domain,
+        environment: process.env.NODE_ENV
+    });
 });
 
 // Suas rotas e lógica continuam normalmente abaixo...
 
-// Inicialização do servidor (Render cuida do HTTPS)
+// Tratamento de erros
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ 
+        error: 'Erro interno do servidor',
+        message: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+});
+
+// Inicialização do servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
+    console.log(`${APP_CONFIG.name} v${APP_CONFIG.version}`);
+    console.log(`Servidor rodando em ${APP_CONFIG.domain}`);
+    console.log(`Modo: ${process.env.NODE_ENV || 'development'}`);
 });

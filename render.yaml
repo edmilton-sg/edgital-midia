@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: totem-digital
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_DOMAIN
+        value: https://edgital-midia.onrender.com
+      - key: APP_NAME
+        value: Totem Digital
+      - key: APP_VERSION
+        value: 1.0.0
+      - key: CORS_ENABLED
+        value: true
+      - key: UPLOAD_DIR
+        value: midia
+      - key: MAX_FILE_SIZE
+        value: 52428800
+      - key: DATABASE_URL
+        fromDatabase:
+          name: totem-db
+          property: connectionString
+      - key: ALLOWED_ORIGINS
+        value: https://seu-dominio.com
+
+databases:
+  - name: totem-db
+    databaseName: totem
+    plan: free 
