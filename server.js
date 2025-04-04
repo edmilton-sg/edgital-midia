@@ -5,8 +5,6 @@ const app = express();
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
-const https = require('https');
-const http = require('http');
 const { exec } = require('child_process');
 
 // Configuração de CORS
@@ -87,23 +85,10 @@ const upload = multer({
     }
 });
 
-// Aqui começa a parte corrigida do HTTPS
-const certPath = '/etc/letsencrypt/live/buscamax.com.br';
-const useHttps = fs.existsSync(`${certPath}/privkey.pem`) && fs.existsSync(`${certPath}/fullchain.pem`);
+// Suas rotas e lógica continuam normalmente abaixo...
 
-const PORT = useHttps ? 443 : 3000;
-
-if (useHttps) {
-    const options = {
-        key: fs.readFileSync(`${certPath}/privkey.pem`),
-        cert: fs.readFileSync(`${certPath}/fullchain.pem`)
-    };
-
-    https.createServer(options, app).listen(PORT, () => {
-        console.log(`Servidor HTTPS rodando na porta ${PORT}`);
-    });
-} else {
-    http.createServer(app).listen(PORT, () => {
-        console.log(`Servidor HTTP rodando na porta ${PORT}`);
-    });
-}
+// Inicialização do servidor (Render cuida do HTTPS)
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
+});
