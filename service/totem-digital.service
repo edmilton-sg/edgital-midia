@@ -1,0 +1,26 @@
+[Unit]
+Description=Serviço do Totem Digital
+After=network.target
+
+[Service]
+Type=simple
+User=edgital
+Group=edgital
+WorkingDirectory=/home/edgital/totem_edgital
+Environment=NODE_ENV=production
+Environment=HOME=/home/edgital
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/usr/bin/nodejs /home/edgital/totem_edgital/server.js
+Restart=always
+RestartSec=10
+StandardOutput=inherit
+StandardError=inherit
+ProtectSystem=full
+PrivateTmp=true
+NoNewPrivileges=true
+UMask=0022
+RuntimeDirectory=totem-digital
+RuntimeDirectoryMode=0755
+
+[Install]
+WantedBy=multi-user.target 

@@ -1,0 +1,9 @@
+# Arquivos
+.env
+.vercel
+.vscode
+
+
+# Pastas
+service/
+node_modules/

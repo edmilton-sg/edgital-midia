@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Administrativo - Totem Digital</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f2f5;
+        }
+
+        .header {
+            background-color: #003399;
+            color: white;
+            padding: 1rem;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        .nav-menu {
+            background-color: #002266;
+            padding: 0.5rem;
+            position: fixed;
+            top: 60px;
+            left: 0;
+            right: 0;
+            z-index: 999;
+        }
+
+        .nav-menu button {
+            background: none;
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            margin-right: 1rem;
+            cursor: pointer;
+            font-size: 1rem;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .nav-menu button:hover {
+            background-color: #003399;
+        }
+
+        .nav-menu button.active {
+            background-color: #004de6;
+        }
+
+        .container {
+            margin-top: 120px;
+            padding: 20px;
+        }
+
+        .section {
+            display: none;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .monitor-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-box h3 {
+            margin: 0;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .stat-box p {
+            margin: 10px 0 0;
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .monitor-controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .monitor-table {
+            overflow-x: auto;
+        }
+
+        .monitor-table table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .monitor-table th,
+        .monitor-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .monitor-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+
+        .monitor-table tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .upload-area {
+            margin-bottom: 20px;
+        }
+
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .file-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .file-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .file-card img,
+        .file-card video {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+
+        .file-info {
+            padding: 10px;
+        }
+
+        .file-info p {
+            margin: 0;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .btn-primary {
+            background-color: #003399;
+            color: white;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .status-message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .upload-progress {
+            margin-top: 10px;
+        }
+
+        .progress-bar {
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #003399;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>Painel Administrativo - Totem Digital</h1>
+    </header>
+
+    <nav class="nav-menu">
+        <button onclick="showSection('upload')" class="active">Upload de Arquivos</button>
+        <button onclick="showSection('monitor')">Monitoramento</button>
+    </nav>
+
+    <div class="container">
+        <!-- Seção de Upload -->
+        <div id="upload" class="section active">
+            <h2>Upload de Arquivos</h2>
+            <div class="upload-area">
+                <input type="file" id="fileInput" style="display: none;" accept="image/*,video/*" onchange="handleFileSelect(event)">
+                <button onclick="document.getElementById('fileInput').click()" class="btn btn-primary">Selecionar Arquivo</button>
+                
+                <div id="uploadProgress" class="upload-progress" style="display: none;">
+                    <p id="uploadStatus"></p>
+                    <div class="progress-bar">
+                        <div id="progressBar" class="progress-bar-fill" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div id="statusMessage" class="status-message" style="display: none;"></div>
+            </div>
+
+            <div id="fileGrid" class="file-grid">
+                <!-- Arquivos serão carregados aqui -->
+            </div>
+        </div>
+
+        <!-- Seção de Monitoramento -->
+        <div id="monitor" class="section">
+            <h2>Monitoramento de Requisições</h2>
+            <div class="monitor-stats">
+                <div class="stat-box">
+                    <h3>Total de Requisições</h3>
+                    <p id="totalRequests">0</p>
+                </div>
+                <div class="stat-box">
+                    <h3>Tempo Online</h3>
+                    <p id="uptime">0s</p>
+                </div>
+                <div class="stat-box">
+                    <h3>Memória em Uso</h3>
+                    <p id="memoryUsage">0 MB</p>
+                </div>
+            </div>
+            <div class="monitor-controls">
+                <button onclick="clearLogs()" class="btn btn-danger">Limpar Logs</button>
+                <button onclick="refreshMonitor()" class="btn btn-primary">Atualizar</button>
+            </div>
+            <div class="monitor-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data/Hora</th>
+                            <th>Método</th>
+                            <th>Rota</th>
+                            <th>IP</th>
+                            <th>Status</th>
+                            <th>Navegador</th>
+                        </tr>
+                    </thead>
+                    <tbody id="requestLogs">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api';
+
+        // Funções de navegação
+        function showSection(sectionId) {
+            // Atualiza botões do menu
+            document.querySelectorAll('.nav-menu button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`button[onclick="showSection('${sectionId}')"]`).classList.add('active');
+
+            // Atualiza seções
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionId).classList.add('active');
+
+            // Se mudar para a seção de upload, carrega os arquivos
+            if (sectionId === 'upload') {
+                loadFiles();
+            }
+        }
+
+        // Funções de monitoramento
+        function refreshMonitor() {
+            fetch(`${API_URL}/monitor`)
+                .then(response => response.json())
+                .then(data => {
+                    updateMonitorStats(data);
+                    updateRequestLogs(data.requests);
+                })
+                .catch(error => showStatus('Erro ao carregar monitoramento: ' + error.message, 'error'));
+        }
+
+        function updateMonitorStats(data) {
+            document.getElementById('totalRequests').textContent = data.totalRequests;
+            document.getElementById('uptime').textContent = formatUptime(data.uptime);
+            document.getElementById('memoryUsage').textContent = formatMemory(data.memory.heapUsed);
+        }
+
+        function updateRequestLogs(requests) {
+            const tbody = document.getElementById('requestLogs');
+            tbody.innerHTML = '';
+            
+            requests.forEach(log => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${formatDate(log.timestamp)}</td>
+                    <td>${log.method}</td>
+                    <td>${log.path}</td>
+                    <td>${log.ip}</td>
+                    <td>${log.status}</td>
+                    <td>${log.userAgent}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function clearLogs() {
+            if (confirm('Tem certeza que deseja limpar todos os logs?')) {
+                fetch(`${API_URL}/monitor/clear`, { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        showStatus('Logs limpos com sucesso', 'success');
+                        refreshMonitor();
+                    })
+                    .catch(error => showStatus('Erro ao limpar logs: ' + error.message, 'error'));
+            }
+        }
+
+        // Funções de formatação
+        function formatUptime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const remainingSeconds = Math.floor(seconds % 60);
+            
+            return `${hours}h ${minutes}m ${remainingSeconds}s`;
+        }
+
+        function formatMemory(bytes) {
+            return `${Math.round(bytes / 1024 / 1024)} MB`;
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString('pt-BR');
+        }
+
+        // Funções de upload e gerenciamento de arquivos
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const progressBar = document.getElementById('progressBar');
+            const uploadStatus = document.getElementById('uploadStatus');
+            const uploadProgress = document.getElementById('uploadProgress');
+
+            uploadProgress.style.display = 'block';
+            progressBar.style.width = '0%';
+            uploadStatus.textContent = 'Iniciando upload...';
+
+            fetch(`${API_URL}/upload_arquivo`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                showStatus(data.message, 'success');
+                loadFiles();
+                event.target.value = '';
+            })
+            .catch(error => {
+                showStatus('Erro no upload: ' + error.message, 'error');
+                event.target.value = '';
+            })
+            .finally(() => {
+                uploadProgress.style.display = 'none';
+            });
+        }
+
+        function loadFiles() {
+            fetch(`${API_URL}/listar_arquivos`)
+                .then(response => response.json())
+                .then(data => {
+                    const files = Array.isArray(data) ? data : (data.files || []);
+                    const grid = document.getElementById('fileGrid');
+                    grid.innerHTML = '';
+                    
+                    if (files.length === 0) {
+                        grid.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">Nenhum arquivo encontrado</div>';
+                        return;
+                    }
+                    
+                    files.forEach(filename => {
+                        const card = document.createElement('div');
+                        card.className = 'file-card';
+                        
+                        const mediaPath = `/midia/${filename}`;
+                        const isVideo = filename.match(/\.(mp4|webm)$/i);
+                        
+                        card.innerHTML = `
+                            ${isVideo 
+                                ? `<video src="${mediaPath}" controls></video>`
+                                : `<img src="${mediaPath}" alt="${filename}">`
+                            }
+                            <div class="file-info">
+                                <p>${filename}</p>
+                                <button onclick="deleteFile('${filename}')" class="btn btn-danger">Excluir</button>
+                            </div>
+                        `;
+                        
+                        grid.appendChild(card);
+                    });
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar arquivos:', error);
+                    const grid = document.getElementById('fileGrid');
+                    grid.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc3545;">Erro ao carregar arquivos</div>';
+                });
+        }
+
+        function deleteFile(filename) {
+            if (confirm(`Tem certeza que deseja excluir ${filename}?`)) {
+                fetch(`${API_URL}/deletar_arquivo/${filename}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    showStatus(data.message, 'success');
+                    loadFiles();
+                })
+                .catch(error => showStatus('Erro ao deletar arquivo: ' + error.message, 'error'));
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.textContent = message;
+            statusDiv.className = `status-message status-${type}`;
+            statusDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        // Atualização automática do monitoramento
+        setInterval(refreshMonitor, 30000);
+
+        // Carregamento inicial
+        loadFiles(); // Carrega os arquivos ao iniciar
+        refreshMonitor();
+    </script>
+</body>
+</html>

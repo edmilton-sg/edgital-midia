@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta de Produtos</title>
+    <style>
+        body {
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            transition: background-image 2s ease;
+            margin: 0;
+            padding: 0;
+        }
+
+        #video-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        .media-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1;
+            background-color: black;
+        }
+
+        body::before {
+            display: none; /* Removendo o pseudo-elemento anterior */
+        }
+
+        .background-image {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            z-index: 1;
+        }
+
+        #popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            backdrop-filter: blur(5px);
+            z-index: 9998;
+            display: none;
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+
+        #popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #ffffff;
+            color: #003399;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: clamp(16px, 4vw, 35px);
+            font-weight: bold;
+            padding: clamp(10px, 3vw, 20px);
+            border-radius: 10px;
+            z-index: 9999;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
+            width: 90%;
+            max-width: 600px;
+            display: none;
+        }
+
+        form {
+            margin-top: 50px;
+            text-align: center;
+        }
+
+        input[type="text"] {
+            padding: 5px;
+            margin: 5px;
+            position: absolute;
+            top: -100px;
+            left: -100px;
+            opacity: 0;
+        }
+
+        .blink-text {
+            font-size: clamp(15px, 5vw, 25px);
+            font-family: Open Sans, sans-serif;
+            animation: blink 2s infinite;
+            color: hsl(0, 0%, 100%);
+            background-color: hwb(0 22% 78%);
+            padding: 10px 20px;
+            border-radius: 5px;
+            position: fixed;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            text-align: center;
+            width: auto;
+            max-width: 90%;
+            z-index: 9999;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        @media screen and (max-width: 480px) {
+            .blink-text {
+                padding: 8px 16px;
+                bottom: 10px;
+            }
+        }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+
+        .clock {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            font-family: Arial, sans-serif;
+            font-size: clamp(16px, 3vw, 24px);
+            font-weight: bold;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px 15px;
+            border-radius: 8px;
+            z-index: 9999;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="clock" id="clock"></div>
+    <video id="video-bg" autoplay></video>
+
+     <div>
+        <p class="blink-text">BUSCA PREÇO</p>
+    </div>
+
+    <div id="popup-overlay"></div>
+    <div id="popup"></div>
+
+    <script>
+        let barcode = '';
+        let barcodeTimeout = null; // Variável para armazenar o timeout
+
+        // Função para limpar o código de barras
+        function clearBarcode() {
+            barcode = '';
+            if (barcodeTimeout) {
+                clearTimeout(barcodeTimeout);
+                barcodeTimeout = null;
+            }
+        }
+
+        // Evento global para capturar teclas pressionadas
+        document.addEventListener('keydown', (event) => {
+            // Limpa o timeout anterior se existir
+            if (barcodeTimeout) {
+                clearTimeout(barcodeTimeout);
+            }
+
+            if (event.key === 'Enter') {
+                handleSearch(barcode);
+                clearBarcode();
+            } else {
+                barcode += event.key; // Adiciona a tecla pressionada ao código de barras
+                
+                // Define um novo timeout de 2 segundos
+                barcodeTimeout = setTimeout(() => {
+                    clearBarcode();
+                    showError('Tempo limite excedido. Tente novamente.');
+                }, 3000);
+            }
+        });
+
+        // Limpa o código quando a página é carregada
+        window.addEventListener('load', clearBarcode);
+
+        function handleSearch(barcode) {
+            if (!barcode || !/^\d+$/.test(barcode)) {
+                showError('Código de barras inválido');
+                return;
+            }
+
+            // Usando caminho relativo para a API
+            fetch(`/api/produtos/${barcode}`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Cache-Control': 'no-cache'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        throw new Error('Produto não encontrado');
+                    } else if (response.status === 500) {
+                        throw new Error('Erro no servidor');
+                    }
+                    throw new Error('Erro na consulta');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!data) {
+                    throw new Error('Dados inválidos recebidos do servidor');
+                }
+                const produto = {
+                    descricao: data.descricao ? data.descricao.toUpperCase() : 'PRODUTO SEM DESCRIÇÃO',
+                    venda: data.venda ? Number(data.venda).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '0.00',
+                    vlatacado: data.vlatacado ? Number(data.vlatacado).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : null,
+                    fator: data.fator ? parseInt(data.fator) : 0
+                };
+                showProduct(produto);
+            })
+            .catch(error => {
+                console.error('Erro detalhado na consulta:', error);
+                if (error.message === 'Failed to fetch') {
+                    showError('Erro de conexão com o servidor. Verifique sua conexão.');
+                } else {
+                    showError(error.message);
+                }
+            });
+        }
+
+        // Adicione esta nova função para mostrar erros
+        function showError(message) {
+            const popup = document.getElementById('popup');
+            const overlay = document.getElementById('popup-overlay');
+        
+            let content = `
+                <div style='text-align: center; padding: 20px;'>
+                    <div style='background-color: #ff0000; color: #ffffff; padding: 10px; border-radius: 10px; font-size: 30px;'>${message}</div>
+                </div>
+            `;
+        
+            popup.innerHTML = content;
+            popup.style.display = 'block';
+            overlay.style.display = 'block';
+        
+            setTimeout(() => {
+                popup.style.display = 'none';
+                overlay.style.display = 'none';
+            }, 3000);
+        }
+
+        function showProduct(product) {
+            const popup = document.getElementById('popup');
+            const overlay = document.getElementById('popup-overlay');
+
+            let content = `
+                <div style='text-align: center; margin-bottom: 20px;'>
+                    <div style='background-color: #003399; color: #ffffff; padding: 10px; border-radius: 10px; font-size: clamp(20px, 5vw, 40px); margin-bottom: 10px;'>${product.descricao}</div>
+                    <div style='font-size: clamp(25px, 6vw, 50px); color: #003399;'>VAREJO: <span style='color: red;'>R$ ${product.venda}</span></div>
+                </div>
+            `;
+
+            if (product.vlatacado && product.fator) {
+                content += `
+                    <div style='background-color: #f9f9f9; border: 2px solid #003399; border-radius: 10px; padding: 15px; text-align: center;'>
+                        <div style='font-size: clamp(16px, 4vw, 30px); font-weight: bold; margin-bottom: 10px;'>A PARTIR DE ${product.fator} UNIDADES</div>
+                        <div style='font-size: clamp(25px, 6vw, 50px); color: #003399;'>ATACADO: <span style='color: red;'>R$ ${product.vlatacado}</span></div>
+                    </div>
+                `;
+            }
+
+            popup.innerHTML = content;
+            popup.style.display = 'block';
+            overlay.style.display = 'block';
+
+            setTimeout(() => {
+                popup.style.display = 'none';
+                overlay.style.display = 'none';
+            }, 9000);
+        }
+
+        // Código do slideshow existente
+        var directory = 'midia/';
+        var currentIndex = 0;
+        var mediaFiles = [];
+        var imageDisplayTime = 7000; // Tempo fixo para imagens (7 segundos)
+        var videoBg = document.getElementById('video-bg');
+        let lastExecutionTime = Date.now();
+
+        function displayMedia() {
+            if (mediaFiles.length === 0) return;
+
+            var file = mediaFiles[currentIndex];
+
+            if (file.match(/\.(mp4|webm)$/)) {
+                videoBg.src = file;
+                videoBg.style.display = 'block';
+                document.body.style.backgroundImage = '';
+                videoBg.muted = true;
+
+                videoBg.onloadedmetadata = function() {
+                    // Não define mediaDisplayTime para vídeos
+                    // O vídeo irá rodar até o final naturalmente
+                };
+
+                videoBg.onended = function() {
+                    nextMedia();
+                };
+
+                videoBg.onerror = function() {
+                    console.error('Erro ao carregar vídeo:', file);
+                    nextMedia();
+                };
+
+                videoBg.play().catch(function(error) {
+                    console.error('Erro ao reproduzir vídeo:', error);
+                    nextMedia();
+                });
+            } else {
+                var img = new Image();
+                img.src = file;
+
+                img.onload = function() {
+                    document.body.style.backgroundImage = 'url(' + file + ')';
+                    videoBg.style.display = 'none';
+                    // Usa tempo fixo para imagens
+                    setTimeout(nextMedia, imageDisplayTime);
+                };
+
+                img.onerror = nextMedia;
+            }
+            updateHeartbeat();
+        }
+
+        function updateHeartbeat() {
+            lastExecutionTime = Date.now();
+        }
+
+        function preloadMedia() {
+            fetch('/api/listar_arquivos')  // Updated to use /api prefix
+                .then(response => response.json())
+                .then(data => {
+                    if (data.files && data.files.length > 0) {
+                        const newMediaFiles = data.files.map(file => `/midia/${file}`);  // Added leading slash
+                        
+                        if (newMediaFiles.length > 0 && newMediaFiles.join() !== mediaFiles.join()) {
+                            mediaFiles = newMediaFiles;
+                            currentIndex = 0;
+                            displayMedia();
+                        }
+                    }
+                    updateHeartbeat();
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar arquivos:', error);
+                    updateHeartbeat();
+                });
+        }
+
+        function nextMedia() {
+            currentIndex = (currentIndex + 1) % mediaFiles.length;
+            displayMedia();
+            updateHeartbeat();
+        }
+
+        preloadMedia();
+        setInterval(preloadMedia, 20000);
+
+        // Add server status check
+        window.onload = function() {
+            resetTimer();
+
+            // Test server connection
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Server Status:', data);
+                    if (data.status !== 'online') {
+                        showError('Servidor indisponível');
+                    }
+                })
+                .catch(error => {
+                    console.error('Server Error:', error);
+                    showError('Erro de conexão com o servidor');
+                });
+        };
+
+        function resetTimer() {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => location.reload(), 180000);
+            updateHeartbeat();
+        }
+
+        var timeout = null;
+        document.onmousemove = resetTimer;
+        document.onkeypress = resetTimer;
+
+        setInterval(() => {
+            if (Date.now() - lastExecutionTime > 10000) {
+                location.reload();
+            }
+        }, 10000);
+
+        // Função para atualizar o relógio
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('clock').textContent = `${hours}:${minutes}`;
+        }
+
+        // Atualiza o relógio a cada minuto
+        updateClock();
+        setInterval(updateClock, 60000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,411 @@
+DOCUMENTAÇÃO DO SISTEMA TOTEM DIGITAL
+=====================================
+
+1. REQUISITOS DO SISTEMA
+------------------------
+- Sistema Operacional: Raspbian
+- Node.js versão 14 ou superior
+- Navegador Chromium
+- Conexão com internet
+- PostgreSQL (Neon Database)
+
+2. CONFIGURAÇÃO DO AMBIENTE
+--------------------------
+a) Instalação do Node.js e dependências:
+   ```bash
+   curl -fsSL https://deb.nodesource.com/setup_14.x | sudo -E bash -
+   sudo apt-get install -y nodejs
+   cd /home/edgital/totem_edgital/
+   npm install
+   ```
+
+b) Configuração do modo quiosque:
+   ```bash
+   # Criar script de inicialização
+   sudo nano /home/edgital/start-totem.sh
+   
+   # Conteúdo do script:
+   #!/bin/bash
+   chromium-browser --kiosk --disable-restore-session-state --noerrdialogs --disable-infobars --no-first-run --fast --fast-start --disable-features=TranslateUI --disable-pinch --overscroll-history-navigation=0 --disable-features=TouchpadOverscrollHistoryNavigation --check-for-update-interval=31536000 --disable-component-update --ignore-certificate-errors https://[IP_DO_SERVIDOR]:3443
+   
+   # Tornar executável
+   chmod +x /home/edgital/start-totem.sh
+   ```
+
+c) Configuração do autostart:
+   ```bash
+   sudo nano /etc/xdg/lxsession/LXDE-pi/autostart
+   
+   # Adicionar as linhas:
+   @xset s off
+   @xset -dpms
+   @xset s noblank
+   @/home/edgital/start-totem.sh
+   ```
+
+3. ESTRUTURA DO PROJETO
+----------------------
+/home/edgital/totem_edgital/
+├── server.js
+├── index.html
+├── painel.html
+├── midia/
+├── package.json
+└── DOCUMENTACAO.txt
+
+4. FUNCIONALIDADES
+-----------------
+a) Consulta de Produtos:
+   - Leitura de código de barras
+   - Exibição de preços (varejo e atacado)
+   - Interface responsiva
+
+b) Apresentação de Mídia:
+   - Suporte a imagens (jpg, jpeg, png, gif)
+   - Suporte a vídeos (mp4, webm)
+   - Transição automática a cada 7 segundos para imagens
+   - Vídeos são reproduzidos por completo
+
+c) Painel Administrativo:
+   - Upload de arquivos
+   - Gerenciamento de mídia
+   - Renomeação automática (midia-XX)
+   - Monitoramento de requisições
+     * Total de requisições
+     * Tempo online do servidor
+     * Uso de memória
+     * Log detalhado de requisições
+     * IP dos totens conectados
+     * Status das requisições
+     * Navegador utilizado
+
+d) Interface do Totem:
+   - Modo fullscreen automático
+   - Relógio digital no canto superior direito
+   - Mensagem "BUSCA PREÇO 1.1" piscante
+   - Foco automático no campo de código de barras
+
+5. SEGURANÇA
+------------
+- Validação de tipos de arquivo
+- Limite de tamanho para uploads (50MB)
+- Proteção contra saída do modo fullscreen
+- Prevenção de comandos do teclado (F11, ESC, Alt+Tab)
+
+6. MANUTENÇÃO
+------------
+a) Serviço:
+   ```bash
+   sudo systemctl start totem-digital    # Iniciar
+   sudo systemctl stop totem-digital     # Parar
+   sudo systemctl restart totem-digital  # Reiniciar
+   sudo systemctl status totem-digital   # Verificar status
+   ```
+
+b) Logs:
+   ```bash
+   sudo journalctl -u totem-digital -n 50 --no-pager  # Últimos 50 logs
+   ```
+
+7. BACKUP
+--------
+a) Backup do projeto:
+   ```bash
+   cp -r /home/edgital/totem_edgital/ /backup/totem_$(date +%Y%m%d)
+   ```
+
+b) Backup da mídia:
+   ```bash
+   cp -r /home/edgital/totem_edgital/midia/ /backup/midia_$(date +%Y%m%d)
+   ```
+
+8. SOLUÇÃO DE PROBLEMAS
+----------------------
+a) Tela preta ou mídia não exibida:
+   - Verificar pasta midia/
+   - Verificar permissões: sudo chown -R edgital:edgital /home/edgital/totem_edgital/midia
+
+b) Erro de conexão:
+   - Verificar status do serviço
+   - Verificar conexão com internet
+   - Verificar configurações do banco
+
+c) Saída do modo fullscreen:
+   - O sistema tentará restaurar automaticamente
+   - Em caso de falha, reiniciar o navegador
+
+d) Relógio incorreto:
+   - Verificar hora do sistema: date
+   - Sincronizar NTP: sudo timedatectl set-ntp true
+
+9. ATUALIZAÇÕES
+--------------
+Para atualizar o sistema:
+```bash
+cd /home/edgital/totem_edgital/
+git pull
+npm install
+sudo systemctl restart totem-digital
+```
+
+10. CONTATOS
+-----------
+Suporte Técnico: Edgital
+E-mail: suporte@edgital.com.br
+
+11. CONFIGURAÇÃO HTTPS LOCAL
+-------------------------
+a) Criar diretório SSL:
+   ```bash
+   cd /home/edgital/totem_edgital
+   mkdir ssl
+   cd ssl
+   ```
+
+b) Gerar certificado autoassinado:
+   ```bash
+   # Gerar chave privada
+   openssl genrsa -out server.key 2048
+
+   # Gerar certificado usando a configuração
+   openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+   -keyout server.key -out server.crt \
+   -config ssl.conf -extensions v3_req
+
+   # Configurar permissões
+   sudo chown -R edgital:edgital /home/edgital/totem_edgital/ssl
+   sudo chmod 600 server.key
+   ```
+
+c) Portas utilizadas:
+   - HTTP: 3001 (redirecionamento automático para HTTPS)
+   - HTTPS: 3443 (conexão segura)
+
+d) Verificação:
+   ```bash
+   # Testar configuração SSL com IP
+   curl -k https://[IP_DO_SERVIDOR]:3443
+
+   # Verificar redirecionamento
+   curl -L http://[IP_DO_SERVIDOR]:3001
+   ```
+
+e) Notas importantes:
+   - O certificado é válido por 10 anos (3650 dias)
+   - Certificado válido para IP [IP_DO_SERVIDOR] e localhost
+   - Por ser autoassinado, o navegador mostrará um aviso de segurança
+   - O parâmetro --ignore-certificate-errors no Chromium ignora este aviso
+   - Não é necessário renovação do certificado
+
+12. DETALHES TÉCNICOS ADICIONAIS
+------------------------------
+a) Banco de Dados:
+   - Host: ep-proud-resonance-a5l33umv-pooler.us-east-2.aws.neon.tech
+   - Database: neondb
+   - SSL: Habilitado
+   - Pooling: Configurado para máximo de conexões
+
+b) Segurança Adicional:
+   - CORS: Configurado para permitir apenas requisições necessárias
+   - Rate Limiting: Implementado para prevenir sobrecarga
+   - Validação de Arquivos: Verificação de MIME type
+   - Sanitização de Entradas: Implementada para consultas SQL
+   - Monitoramento: Log de todas as requisições com IP e navegador
+
+c) Performance:
+   - Cache de Arquivos: Desabilitado para mídia
+   - Compressão: Habilitada para respostas HTTP
+   - Pooling de Conexões: Ativo para banco de dados
+   - Timeout: Configurado para 30 segundos
+   - Logs: Mantém os últimos 1000 registros de requisições
+
+d) Monitoramento:
+   - Logs do Sistema: /var/log/syslog
+   - Logs do Serviço: journalctl
+   - Logs do Aplicativo: Console do navegador
+   - Métricas de Performance: Disponíveis via systemd
+   - Painel de Monitoramento: Acessível via /painel.html
+     * Atualização automática a cada 30 segundos
+     * Visualização de requisições em tempo real
+     * Limpeza de logs disponível
+     * Métricas de uso do servidor
+
+13. RESTRIÇÕES E LIMITES
+----------------------
+a) Upload de Arquivos:
+   - Tamanho Máximo: 50MB
+   - Tipos Permitidos: jpg, jpeg, png, gif, mp4, webm
+   - Nomenclatura: midia-XX (XX = número sequencial)
+
+b) Consulta de Produtos:
+   - Timeout: 5 segundos
+   - Cache: Desabilitado
+   - Rate Limit: 60 requisições/minuto
+
+c) Sistema:
+   - Memória Mínima: 512MB
+   - Espaço em Disco: 1GB livre
+   - CPU: 1 core mínimo
+   - Rede: 1Mbps mínimo
+
+14. RECUPERAÇÃO DE DESASTRES
+--------------------------
+a) Falha no Servidor:
+   ```bash
+   # Verificar logs
+   sudo journalctl -u totem-digital -n 100
+   
+   # Reiniciar serviço
+   sudo systemctl restart totem-digital
+   
+   # Verificar espaço em disco
+   df -h
+   ```
+
+b) Falha no Banco:
+   ```bash
+   # Testar conexão
+   curl https://[IP_DO_SERVIDOR]:3443/api/status
+   
+   # Verificar logs do serviço
+   sudo journalctl -u totem-digital | grep "database"
+   ```
+
+c) Recuperação de Arquivos:
+   - Backups diários em /backup/
+   - Logs de transações em /var/log/
+   - Snapshots do banco de dados
+
+15. MANUTENÇÃO PREVENTIVA
+-----------------------
+a) Diária:
+   - Verificar logs de erros
+   - Monitorar espaço em disco
+   - Verificar status do serviço
+
+b) Semanal:
+   - Limpar arquivos temporários
+   - Verificar backups
+   - Atualizar sistema operacional
+
+c) Mensal:
+   - Verificar certificados SSL
+   - Atualizar dependências
+   - Fazer backup completo
+
+16. INTEGRAÇÃO COM OUTROS SISTEMAS
+-------------------------------
+a) Banco de Dados:
+   - Protocolo: PostgreSQL
+   - Porta: 5432
+   - SSL: Obrigatório
+   - Pool de Conexões: Configurado
+
+b) Rede:
+   - Portas: 3001 (HTTP), 3443 (HTTPS)
+   - Firewall: Configurado
+   - DNS: Não necessário
+   - IP Fixo: [IP_DO_SERVIDOR]
+
+=====================================
+ESTRUTURA DO PROJETO
+=====================================
+
+O projeto está organizado da seguinte forma:
+
+1. Arquivos de Interface:
+   - index.html: Interface principal do totem
+   - painel.html: Painel administrativo
+   - styles.css: Estilos CSS compartilhados
+
+2. Arquivos do Servidor:
+   - server.js: Servidor principal Node.js/Express
+   - package.json: Configuração e dependências do projeto
+   - package-lock.json: Versões específicas das dependências
+   - .env: Variáveis de ambiente e configurações sensíveis
+
+3. Documentação:
+   - DOCUMENTACAO.txt: Este arquivo, contendo toda a documentação do projeto
+
+4. Pastas Organizadas por Função:
+   - service/: Contém arquivos relacionados ao serviço systemd
+     * totem-digital.service
+     * install-service.sh
+     * uninstall-service.sh
+   - midia/: Armazena os arquivos de mídia do sistema
+   - node_modules/: Dependências do Node.js instaladas
+   - ssl/: Certificados SSL para HTTPS
+     * server.key: Chave privada do certificado
+     * server.crt: Certificado público
+     * ssl.conf: Configuração do certificado
+
+=====================================
+CERTIFICADOS SSL
+=====================================
+
+O sistema utiliza certificados SSL autoassinados para HTTPS:
+
+1. Localização:
+   - Diretório: /home/edgital/totem_edgital/ssl/
+   - Arquivos:
+     * server.key: Chave privada (600)
+     * server.crt: Certificado público (644)
+     * ssl.conf: Configuração do certificado
+
+2. Configuração:
+   - Válido por: 10 anos
+   - Domínios: localhost
+   - IPs: 127.0.0.1
+   - País: BR
+   - Estado: SP
+   - Cidade: Sao Paulo
+   - Organização: Totem Digital
+
+3. Permissões:
+   - Proprietário: edgital:edgital
+   - Chave privada: 600 (rw-------)
+   - Certificado: 644 (rw-r--r--)
+
+4. Recriação dos Certificados:
+   ```bash
+   # Criar diretório SSL
+   mkdir -p /home/edgital/totem_edgital/ssl
+   
+   # Criar arquivo de configuração
+   cat > /home/edgital/totem_edgital/ssl/ssl.conf << 'EOL'
+   [req]
+   distinguished_name = req_distinguished_name
+   x509_extensions = v3_req
+   prompt = no
+   
+   [req_distinguished_name]
+   C = BR
+   ST = SP
+   L = Sao Paulo
+   O = Totem Digital
+   OU = TI
+   CN = localhost
+   
+   [v3_req]
+   basicConstraints = CA:FALSE
+   keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+   subjectAltName = @alt_names
+   
+   [alt_names]
+   DNS.1 = localhost
+   IP.1 = 127.0.0.1
+   EOL
+   
+   # Gerar certificados
+   cd /home/edgital/totem_edgital/ssl
+   openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout server.key -out server.crt -config ssl.conf
+   
+   # Ajustar permissões
+   chmod 600 server.key
+   chmod 644 server.crt
+   chown edgital:edgital server.key server.crt
+   ```
+
+=====================================
+Última atualização: 23/03/2024
+Versão do Sistema: 1.1 

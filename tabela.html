@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabela de Preços - Bovinos</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <style>
+        /* Variáveis de cores e estilos comuns */
+        :root {
+            --gradient-primary: linear-gradient(90deg, #ffde59, #ff914d);
+            --border-radius: 25px;
+            --box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            --scale-factor: 1;
+            --font-size-base: 10px;
+            --padding-horizontal: 1.0em;
+            --padding-vertical: 0.625em;
+            --gap-base: 0.625em;
+            --flex-products: 6;
+            --flex-offers: 4;
+            --max-text-width: 300px;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+            font-size: var(--font-size-base);
+        }
+
+        /* Fundo com overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('bg_tabela_carnes.png') center/cover fixed;
+            z-index: -2;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: -1;
+        }
+
+        /* Barra de senhas */
+        .senha-bar {
+            background: var(--gradient-primary);
+            padding: var(--padding-vertical) var(--padding-horizontal);
+            text-align: center;
+            margin: 0.625em;
+            border-radius: var(--border-radius);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: var(--gap-base);
+            width: calc(100% - 1.25em);
+            box-sizing: border-box;
+        }
+
+        .senha-title {
+            display: inline-block;
+            margin-right: 1.25em;
+            color: #000;
+            font-weight: bold;
+            font-size: 1.8em;
+            white-space: nowrap;
+        }
+
+        .senha-number {
+            display: inline-block;
+            background: var(--gradient-primary);
+            padding: 0.1em 0.1em;
+            border-radius: var(--border-radius);
+            margin: 0;
+            color: #000;
+            font-weight: bold;
+            font-size: 1.4em;
+            box-shadow: var(--box-shadow);
+            min-width: 4em;
+            text-align: center;
+        }
+
+        .container {
+            display: flex;
+            height: calc(100vh - 6.25em);
+            padding: 0 1.25em;
+            flex-wrap: nowrap;
+        }
+
+        /* Seções */
+        .products-section {
+            flex: var(--flex-products);
+            padding: 1.25em;
+            display: flex;
+            flex-direction: column;
+            min-width: var(--max-text-width);
+        }
+
+        .offers-section {
+            flex: var(--flex-offers);
+            padding: 1.25em;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Títulos com efeito neon */
+        .section-title.cortes {
+            color: #ff914d94;
+            text-shadow: 0 0 10px #ff914d,
+                         0 0 20px #ff914d,
+                         0 0 30px #ff914d;
+            font-size: 3.5em;
+            text-align: center;
+            margin-bottom: 1.875em;
+        }
+
+        .section-title.ofertas {
+            color: #ff444498;
+            text-shadow: 0 0 10px #FF0000,
+                         0 0 20px #FF0000,
+                         0 0 30px #FF0000;
+            font-size: 3.5em;
+            text-align: center;
+            margin-bottom: 1.875em;
+        }
+
+        /* Lista de preços */
+        .price-list {
+            list-style: none;
+            padding: 0.625em;
+            margin: 0.625em;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            height: calc(100% - 6.25em);
+            gap: var(--gap-base);
+        }
+
+        .price-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3125em;
+            margin: 0;
+            min-height: 0;
+            flex-shrink: 0;
+        }
+
+        .price-description {
+            background: var(--gradient-primary);
+            padding: var(--padding-vertical) var(--padding-horizontal);
+            border-radius: var(--border-radius);
+            flex-grow: 1;
+            font-weight: bold;
+            color: #000;
+            box-shadow: var(--box-shadow);
+            font-size: 1.2em;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            min-width: 2;
+        }
+
+        .price-value {
+            background: var(--gradient-primary);
+            padding: var(--padding-vertical) var(--padding-horizontal);
+            border-radius: var(--border-radius);
+            min-width: 5.5em;
+            text-align: center;
+            font-weight: bold;
+            box-shadow: var(--box-shadow);
+            color: #000;
+            font-size: 1.3em;
+            flex-shrink: 0;
+        }
+
+        /* Seção de ofertas */
+        .offers-section {
+            position: relative;
+        }
+
+        .offer-card {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+            min-height: 200px;
+        }
+
+        .offer-image {
+            width: auto;
+            height: auto;
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            object-fit: contain;
+            display: block;
+        }
+
+        /* Seção de chamada de senhas */
+        .senha-call-section {
+            display: none;
+            position: absolute;
+            top: 3.125em;
+            left: 0;
+            width: 100%;
+            height: calc(100% - 3.125em);
+            background: rgba(0, 0, 0, 0.329);
+            justify-content: center;
+            align-items: center;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            z-index: 10;
+        }
+
+        .senha-call-content {
+            text-align: center;
+            animation: pulseAnimation 1s infinite;
+            background: var(--gradient-primary);
+            padding: 1.25em;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            width: 80%;
+            max-width: 31.25em;
+        }
+
+        .senha-atual {
+            font-size: 8em;
+            color: #000;
+            margin: 0;
+            padding: 0.625em;
+            font-weight: bold;
+        }
+
+        .senha-texto {
+            font-size: 2em;
+            color: #000;
+            margin: 0.3125em 0;
+            font-weight: bold;
+        }
+
+        @keyframes pulseAnimation {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* Media Queries para diferentes resoluções */
+        @media (max-width: 1200px) {
+            :root {
+                --font-size-base: 14px;
+                --padding-horizontal: 1em;
+                --padding-vertical: 0.5em;
+                --gap-base: 0.5em;
+                --max-text-width: 250px;
+            }
+            
+            .container {
+                flex-wrap: wrap;
+                height: auto;
+                overflow-y: auto;
+            }
+            
+            .products-section, .offers-section {
+                flex: 1;
+                min-height: 50vh;
+            }
+            
+            .price-list {
+                max-height: 50vh;
+                overflow-y: auto;
+            }
+            
+            .offer-card {
+                min-height: 180px;
+            }
+        }
+
+        /* Ajustes específicos para resolução 720p (TVs de 32") */
+        @media (min-width: 1280px) and (max-width: 1366px) and (min-height: 720px) and (max-height: 768px) {
+            :root {
+                --font-size-base: 12px;
+                --padding-horizontal: 0.8em;
+                --padding-vertical: 0.4em;
+                --gap-base: 0.4em;
+                --max-text-width: 200px;
+                --flex-products: 5;
+                --flex-offers: 5;
+            }
+            
+            .senha-bar {
+                margin: 0.5em;
+            }
+            
+            .senha-title {
+                font-size: 1.5em;
+                margin-right: 0.8em;
+            }
+            
+            .senha-number {
+                font-size: 1.4em;
+                min-width: 4em;
+            }
+            
+            .section-title.cortes, .section-title.ofertas {
+                font-size: 2.8em;
+                margin-bottom: 1.5em;
+            }
+            
+            .price-description, .price-value {
+                font-size: 1.1em;
+            }
+            
+            .price-value {
+                min-width: 6em;
+            }
+            
+            .senha-atual {
+                font-size: 6em;
+            }
+            
+            .senha-texto {
+                font-size: 1.6em;
+            }
+            
+            .price-list {
+                height: calc(100% - 5em);
+            }
+            
+            .offer-card {
+                min-height: 160px;
+            }
+        }
+
+        /* Ajustes para telas muito pequenas */
+        @media (max-width: 768px) {
+            :root {
+                --font-size-base: 10px;
+                --padding-horizontal: 0.7em;
+                --padding-vertical: 0.35em;
+                --gap-base: 0.35em;
+                --max-text-width: 180px;
+                --flex-products: 4;
+                --flex-offers: 4;
+            }
+            
+            .container {
+                flex-direction: row;
+                flex-wrap: nowrap;
+                height: auto;
+            }
+            
+            .senha-bar {
+                flex-direction: row;
+                flex-wrap: wrap;
+                height: auto;
+                margin: 0.4em;
+            }
+            
+            .senha-title {
+                font-size: 1.3em;
+                margin-right: 0.6em;
+                margin-bottom: 0;
+            }
+            
+            .senha-number {
+                font-size: 1.2em;
+                min-width: 3.5em;
+            }
+            
+            .offer-image {
+                max-height: 50vh;
+            }
+            
+            .price-list {
+                height: auto;
+                max-height: 50vh;
+            }
+            
+            .price-value {
+                min-width: 5em;
+            }
+            
+            .offer-card {
+                min-height: 140px;
+            }
+        }
+
+        /* Ajustes para telas extremamente pequenas */
+        @media (max-width: 480px) {
+            :root {
+                --font-size-base: 8px;
+                --padding-horizontal: 0.5em;
+                --padding-vertical: 0.25em;
+                --gap-base: 0.25em;
+                --max-text-width: 150px;
+                --flex-products: 3;
+                --flex-offers: 3;
+            }
+            
+            .senha-bar {
+                margin: 0.3em;
+            }
+            
+            .senha-title {
+                font-size: 1.1em;
+                margin-right: 0.4em;
+                width: auto;
+                margin-bottom: 0;
+            }
+            
+            .senha-number {
+                font-size: 1em;
+                min-width: 3em;
+            }
+            
+            .price-description, .price-value {
+                font-size: 1em;
+            }
+            
+            .price-value {
+                min-width: 4em;
+            }
+            
+            .offer-card {
+                min-height: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Barra de senhas -->
+    <div class="senha-bar">
+        <span class="senha-title">ÚLTIMAS CHAMADAS:</span>
+        <span class="senha-number"></span>
+        <span class="senha-number"></span>
+        <span class="senha-number"></span>
+        <span class="senha-number"></span>
+        <span class="senha-number"></span>
+    </div>
+
+    <div class="container">
+        <!-- Seção Esquerda - Lista de Produtos -->
+        <section class="products-section">
+            <h1 class="section-title cortes" id="categoria-titulo">CORTES</h1>
+            <ul class="price-list" id="price-list">
+                <!-- Preços serão inseridos via JavaScript -->
+            </ul>
+        </section>
+
+        <!-- Seção Direita - Ofertas -->
+        <section class="offers-section">
+            <h1 class="section-title ofertas">OFERTAS</h1>
+            <div class="offer-card" id="current-offer">
+                <!-- Ofertas serão inseridas via JavaScript -->
+            </div>
+            <!-- Nova seção de chamada de senhas -->
+            <div class="senha-call-section" id="senha-call">
+                <div class="senha-call-content">
+                    <p class="senha-texto">SENHA</p>
+                    <h2 class="senha-atual" id="senha-atual"></h2>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Elemento de áudio para notificação -->
+    <audio id="senha-sound" src="sons_notificacao/senha_painel.wav" preload="auto"></audio>
+
+    <script>
+        let produtos = [];
+        let produtosPorCorte = {};
+        let categorias = [];
+        let currentCategoria = 0;
+        let currentPage = 0;
+        const itemsPerPage = 10;
+
+        // Sistema de cache de senhas com controle de botão único e persistência
+        const senhaCache = {
+            ultimaSenha: parseInt(localStorage.getItem('ultimaSenha') || '0'),
+            senhasChamadas: JSON.parse(localStorage.getItem('senhasChamadas') || '[]'),
+            maxSenhas: 5,
+            buttonPressTimer: null,
+            isLongPress: false,
+            lastPressTime: 0,
+            displayTimeout: null // Novo: controle do timeout de exibição
+        };
+
+        // Função para salvar o estado das senhas
+        function salvarEstadoSenhas() {
+            localStorage.setItem('ultimaSenha', senhaCache.ultimaSenha.toString());
+            localStorage.setItem('senhasChamadas', JSON.stringify(senhaCache.senhasChamadas));
+        }
+
+        // Função para carregar o estado das senhas
+        function carregarEstadoSenhas() {
+            // Atualiza a barra de senhas com os valores salvos
+            atualizarBarraSenhas();
+        }
+
+        // Função para gerar nova senha
+        function gerarNovaSenha() {
+            senhaCache.ultimaSenha++;
+            salvarEstadoSenhas();
+            return senhaCache.ultimaSenha.toString().padStart(4, '0');
+        }
+
+        // Função para chamar nova senha
+        function chamarNovaSenha() {
+            const novaSenha = gerarNovaSenha();
+            const senhaCall = document.getElementById('senha-call');
+            const senhaAtual = document.getElementById('senha-atual');
+            const offerCard = document.getElementById('current-offer');
+            const ofertasTitulo = document.querySelector('.section-title.ofertas');
+            const senhaSound = document.getElementById('senha-sound');
+
+            // Limpa qualquer timeout existente
+            if (senhaCache.displayTimeout) {
+                clearTimeout(senhaCache.displayTimeout);
+            }
+
+            // Toca o som de notificação
+            senhaSound.currentTime = 0;
+            senhaSound.play().catch(error => console.log('Erro ao tocar áudio:', error));
+
+            // Atualiza a senha sendo chamada
+            senhaAtual.textContent = novaSenha;
+
+            // Mostra a seção de chamada e esconde ofertas
+            senhaCall.style.display = 'flex';
+            offerCard.style.display = 'none';
+            ofertasTitulo.style.display = 'none';
+
+            // Adiciona a senha à lista de senhas chamadas
+            senhaCache.senhasChamadas.unshift(novaSenha);
+            if (senhaCache.senhasChamadas.length > senhaCache.maxSenhas) {
+                senhaCache.senhasChamadas.pop();
+            }
+
+            // Salva o estado e atualiza a barra
+            salvarEstadoSenhas();
+            atualizarBarraSenhas();
+
+            // Define novo timeout para esconder a senha após 7 segundos
+            senhaCache.displayTimeout = setTimeout(() => {
+                senhaCall.style.display = 'none';
+                offerCard.style.display = 'flex';
+                ofertasTitulo.style.display = 'block';
+                senhaCache.displayTimeout = null;
+            }, 7000);
+        }
+
+        // Função para resetar senhas
+        function resetarSenhas() {
+            senhaCache.ultimaSenha = 0;
+            senhaCache.senhasChamadas = [];
+            const senhas = document.querySelectorAll('.senha-number');
+            senhas.forEach(senha => {
+                senha.textContent = '0000';
+            });
+            salvarEstadoSenhas();
+        }
+
+        // Função para atualizar a barra de senhas
+        function atualizarBarraSenhas() {
+            const senhas = document.querySelectorAll('.senha-number');
+            senhas.forEach((elemento, index) => {
+                if (senhaCache.senhasChamadas[index]) {
+                    elemento.textContent = senhaCache.senhasChamadas[index];
+                } else {
+                    elemento.textContent = '0000';
+                }
+            });
+        }
+
+        // Lógica para botão único
+        function handleButtonPress() {
+            const now = Date.now();
+            
+            // Se é um novo clique (não parte de um clique longo anterior)
+            if (!senhaCache.isLongPress) {
+                senhaCache.buttonPressTimer = setTimeout(() => {
+                    // É um clique longo
+                    senhaCache.isLongPress = true;
+                    resetarSenhas();
+                }, 5000); // 5 segundos para reset
+            }
+        }
+
+        function handleButtonRelease() {
+            clearTimeout(senhaCache.buttonPressTimer);
+            
+            // Se não foi um clique longo, chama nova senha
+            if (!senhaCache.isLongPress) {
+                chamarNovaSenha();
+            }
+            
+            senhaCache.isLongPress = false;
+            senhaCache.buttonPressTimer = null;
+        }
+
+        // Event listeners para o botão USB (usando qualquer tecla como simulação)
+        document.addEventListener('keydown', (event) => {
+            // Ignora teclas de função (F1-F12) e teclas de controle
+            if (event.key.length === 1 || event.key === 'Enter' || event.key === 'Tab') {
+                handleButtonPress();
+            }
+        });
+
+        document.addEventListener('keyup', (event) => {
+            // Ignora teclas de função (F1-F12) e teclas de controle
+            if (event.key.length === 1 || event.key === 'Enter' || event.key === 'Tab') {
+                handleButtonRelease();
+            }
+        });
+
+        // Função para formatar preço
+        function formatPrice(price) {
+            return Number(price).toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            });
+        }
+
+        // Função para atualizar a última atualização
+        function updateLastUpdate() {
+            const now = new Date();
+            const formattedDate = now.toLocaleString('pt-BR');
+            if (document.getElementById('last-update')) {
+                document.getElementById('last-update').textContent = formattedDate;
+            }
+        }
+
+        // Função para agrupar produtos por corte
+        function agruparProdutosPorCorte(produtos) {
+            const grupos = {};
+            produtos.forEach(produto => {
+                const corte = produto.corte ? produto.corte.toUpperCase().trim() : 'OUTROS';
+                if (!grupos[corte]) {
+                    grupos[corte] = [];
+                }
+                grupos[corte].push(produto);
+            });
+            return grupos;
+        }
+
+        // Função para buscar produtos do servidor
+        async function fetchProdutos() {
+            try {
+                const response = await fetch('/api/carnes/todos');
+                if (!response.ok) {
+                    throw new Error('Erro ao buscar produtos');
+                }
+                const data = await response.json();
+                produtos = data;
+                produtosPorCorte = agruparProdutosPorCorte(produtos);
+                categorias = Object.keys(produtosPorCorte);
+                updateTable();
+                updateLastUpdate();
+            } catch (error) {
+                console.error('Erro:', error);
+            }
+        }
+
+        // Função para atualizar o título da categoria
+        function updateCategoryTitle(categoria) {
+            const titulo = document.getElementById('categoria-titulo');
+            titulo.textContent = categoria;
+        }
+
+        // Função para atualizar a tabela
+        function updateTable() {
+            if (categorias.length === 0) return;
+
+            const priceList = document.getElementById('price-list');
+            const categoriaAtual = categorias[currentCategoria];
+            const produtosCategoria = produtosPorCorte[categoriaAtual];
+
+            // Atualiza o título com a categoria atual
+            updateCategoryTitle(categoriaAtual);
+
+            const start = currentPage * itemsPerPage;
+            const end = Math.min(start + itemsPerPage, produtosCategoria.length);
+            const pageItems = produtosCategoria.slice(start, end);
+
+            priceList.innerHTML = pageItems.map(produto => `
+                <li class="price-item">
+                    <span class="price-description">${produto.descricao ? produto.descricao.toUpperCase() : ''}</span>
+                    <span class="price-value">${formatPrice(produto.venda || 0)}</span>
+                </li>
+            `).join('');
+
+            if (end >= produtosCategoria.length) {
+                currentPage = 0;
+                currentCategoria = (currentCategoria + 1) % categorias.length;
+            } else {
+                currentPage++;
+            }
+        }
+
+        // Função para gerenciar as ofertas
+        function manageOffers() {
+            const offerCard = document.getElementById('current-offer');
+            let currentIndex = 0;
+            let mediaFiles = [];
+
+            function loadMediaFiles() {
+                fetch('/api/listar_arquivos_carnes')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.files && data.files.length > 0) {
+                            mediaFiles = data.files.map(file => `/midiacarnes/${file}`);
+                            if (currentIndex >= mediaFiles.length) {
+                                currentIndex = 0;
+                            }
+                            showOffer(currentIndex);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro ao carregar arquivos:', error);
+                    });
+            }
+
+            function showOffer(index) {
+                if (mediaFiles.length === 0) return;
+                
+                const imagePath = mediaFiles[index];
+                offerCard.innerHTML = `
+                    <img src="${imagePath}" alt="Oferta" class="offer-image">
+                `;
+            }
+
+            loadMediaFiles();
+
+            // Atualiza ofertas a cada 7 segundos
+            setInterval(() => {
+                if (mediaFiles.length > 0) {
+                    currentIndex = (currentIndex + 1) % mediaFiles.length;
+                    showOffer(currentIndex);
+                }
+            }, 7000);
+
+            // Recarrega arquivos a cada 30 segundos
+            setInterval(loadMediaFiles, 30000);
+        }
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            carregarEstadoSenhas(); // Carrega o estado salvo das senhas
+            fetchProdutos();
+            manageOffers();
+
+            // Atualiza a tabela a cada 10 segundos
+            setInterval(updateTable, 10000);
+
+            // Busca novos dados do servidor a cada 30 segundos
+            setInterval(fetchProdutos, 30000);
+        });
+    </script>
+</body>
+</html>
