@@ -18,6 +18,7 @@ const APP_CONFIG = {
     version: process.env.APP_VERSION || '1.0.0',
     domain: process.env.APP_DOMAIN || 'http://localhost:3000',
     uploadDir: process.env.UPLOAD_DIR || 'midia',
+    uploadDirCarnes: 'midiacarnes', // Novo diretório para arquivos de carnes
     maxFileSize: parseInt(process.env.MAX_FILE_SIZE) || 52428800 // 50MB
 };
 
@@ -152,6 +153,53 @@ app.get('/api/info', (req, res) => {
         environment: process.env.NODE_ENV
     });
 });
+
+// Rota para listar arquivos de carnes
+app.get('/api/listar_arquivos_carnes', (req, res) => {
+    const mediaDirCarnes = path.join(__dirname, APP_CONFIG.uploadDirCarnes);
+    
+    // Cria o diretório se não existir
+    if (!fs.existsSync(mediaDirCarnes)) {
+        fs.mkdirSync(mediaDirCarnes, { recursive: true });
+    }
+
+    fs.readdir(mediaDirCarnes, (err, files) => {
+        if (err) {
+            console.error('Erro ao ler diretório de carnes:', err);
+            return res.status(500).json({ error: 'Erro ao listar arquivos de carnes' });
+        }
+
+        // Filtra apenas arquivos de imagem e vídeo
+        const mediaFiles = files.filter(file => {
+            const ext = path.extname(file).toLowerCase();
+            return ['.jpg', '.jpeg', '.png', '.gif', '.mp4', '.webm'].includes(ext);
+        });
+
+        res.json({ files: mediaFiles });
+    });
+});
+
+// Rota para upload de arquivos de carnes
+app.post('/api/upload_arquivo_carnes', upload.single('file'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+    }
+
+    // Move o arquivo para o diretório de carnes
+    const oldPath = req.file.path;
+    const newPath = path.join(__dirname, APP_CONFIG.uploadDirCarnes, req.file.filename);
+
+    fs.rename(oldPath, newPath, (err) => {
+        if (err) {
+            console.error('Erro ao mover arquivo:', err);
+            return res.status(500).json({ error: 'Erro ao salvar arquivo' });
+        }
+        res.json({ message: 'Arquivo enviado com sucesso', filename: req.file.filename });
+    });
+});
+
+// Rota para servir arquivos estáticos do diretório midiacarnes
+app.use('/midiacarnes', express.static(path.join(__dirname, APP_CONFIG.uploadDirCarnes)));
 
 // Suas rotas e lógica continuam normalmente abaixo...
 
