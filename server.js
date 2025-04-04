@@ -286,23 +286,6 @@ app.post('/api/monitor/clear', (req, res) => {
     res.json({ message: 'Logs limpos com sucesso' });
 });
 
-// Configuração do servidor HTTPS
-const httpsOptions = {
-    key: fs.readFileSync(path.join(__dirname, 'ssl', 'server.key')),
-    cert: fs.readFileSync(path.join(__dirname, 'ssl', 'server.crt'))
-};
-
-// Criar servidor HTTPS
-const httpsServer = https.createServer(httpsOptions, app);
-
-// Porta HTTPS
-const HTTPS_PORT = 3443;
-
-// Iniciar servidor
-httpsServer.listen(HTTPS_PORT, '0.0.0.0', () => {
-    console.log(`Servidor HTTPS rodando na porta ${HTTPS_PORT}`);
-});
-
 // Tratamento de erros
 httpsServer.on('error', (error) => {
     console.error('Erro no servidor HTTPS:', error);
