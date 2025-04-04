@@ -131,77 +131,218 @@ const upload = multer({
 // Configuração do banco de dados
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
-
-// Rota de health check para o Render
-app.get('/health', (req, res) => {
-    res.status(200).json({ 
-        status: 'ok',
-        app: APP_CONFIG.name,
-        version: APP_CONFIG.version,
-        domain: APP_CONFIG.domain
-    });
-});
-
-// Rota para informações da aplicação
-app.get('/api/info', (req, res) => {
-    res.json({
-        name: APP_CONFIG.name,
-        version: APP_CONFIG.version,
-        domain: APP_CONFIG.domain,
-        environment: process.env.NODE_ENV
-    });
-});
-
-// Rota para listar arquivos de carnes
-app.get('/api/listar_arquivos_carnes', (req, res) => {
-    const mediaDirCarnes = path.join(__dirname, APP_CONFIG.uploadDirCarnes);
-    
-    // Cria o diretório se não existir
-    if (!fs.existsSync(mediaDirCarnes)) {
-        fs.mkdirSync(mediaDirCarnes, { recursive: true });
+    ssl: {
+        require: true,
+        rejectUnauthorized: false
     }
+});
 
-    fs.readdir(mediaDirCarnes, (err, files) => {
-        if (err) {
-            console.error('Erro ao ler diretório de carnes:', err);
-            return res.status(500).json({ error: 'Erro ao listar arquivos de carnes' });
+// Test the database connection
+pool.connect((err, client, release) => {
+    if (err) {
+        console.error('Erro detalhado na conexão com o banco:', {
+            code: err.code,
+            message: err.message,
+            stack: err.stack
+        });
+    } else {
+        console.log('Successfully connected to the database');
+        release();
+    }
+});
+
+// Rota de status da API
+app.get('/api/status', (req, res) => {
+    pool.query('SELECT 1')
+        .then(() => {
+            res.json({
+                status: 'online',
+                database: 'connected',
+                timestamp: new Date().toISOString()
+            });
+        })
+        .catch(err => {
+            res.status(500).json({
+                status: 'error',
+                database: 'disconnected',
+                error: err.message,
+                timestamp: new Date().toISOString()
+            });
+        });
+});
+
+// Rota para consulta de produtos
+app.get('/api/produtos/:barra', async (req, res) => {
+    try {
+        const { barra } = req.params;
+        
+        console.log('Consultando produto:', barra);
+        
+        const query = `
+            SELECT 
+                p.descricao,
+                p.venda,
+                CASE 
+                    WHEN p.vlatacado > 0 THEN p.vlatacado 
+                    ELSE NULL 
+                END as vlatacado,
+                CASE 
+                    WHEN p.fator > 0 THEN p.fator 
+                    ELSE NULL 
+                END as fator
+            FROM produtos p
+            WHERE p.barra = $1
+        `;
+        
+        const result = await pool.query(query, [barra]);
+        
+        if (result.rows.length > 0) {
+            const produto = result.rows[0];
+            res.json({
+                descricao: produto.descricao,
+                venda: produto.venda,
+                vlatacado: produto.vlatacado,
+                fator: produto.fator
+            });
+        } else {
+            res.status(404).json({ error: 'Produto não encontrado' });
         }
+    } catch (err) {
+        console.error('Erro detalhado na consulta:', {
+            code: err.code,
+            message: err.message,
+            stack: err.stack
+        });
+        res.status(500).json({ 
+            error: 'Erro ao consultar produto', 
+            details: err.message,
+            code: err.code
+        });
+    }
+});
 
-        // Filtra apenas arquivos de imagem e vídeo
+// Rota para listar arquivos de mídia
+app.get('/api/listar_arquivos', (req, res) => {
+    const mediaDir = path.join(__dirname, APP_CONFIG.uploadDir);
+    try {
+        if (!fs.existsSync(mediaDir)) {
+            return res.json({ files: [] });
+        }
+        const files = fs.readdirSync(mediaDir);
         const mediaFiles = files.filter(file => {
             const ext = path.extname(file).toLowerCase();
             return ['.jpg', '.jpeg', '.png', '.gif', '.mp4', '.webm'].includes(ext);
         });
-
         res.json({ files: mediaFiles });
-    });
-});
-
-// Rota para upload de arquivos de carnes
-app.post('/api/upload_arquivo_carnes', upload.single('file'), (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+    } catch (error) {
+        console.error('Error reading media directory:', error);
+        res.status(500).json({ error: 'Erro ao listar arquivos' });
     }
+});
 
-    // Move o arquivo para o diretório de carnes
-    const oldPath = req.file.path;
-    const newPath = path.join(__dirname, APP_CONFIG.uploadDirCarnes, req.file.filename);
-
-    fs.rename(oldPath, newPath, (err) => {
-        if (err) {
-            console.error('Erro ao mover arquivo:', err);
-            return res.status(500).json({ error: 'Erro ao salvar arquivo' });
+// Rota para listar arquivos de carnes
+app.get('/api/listar_arquivos_carnes', (req, res) => {
+    const mediaDir = path.join(__dirname, APP_CONFIG.uploadDirCarnes);
+    try {
+        if (!fs.existsSync(mediaDir)) {
+            fs.mkdirSync(mediaDir, { recursive: true });
+            return res.json({ files: [] });
         }
-        res.json({ message: 'Arquivo enviado com sucesso', filename: req.file.filename });
+        const files = fs.readdirSync(mediaDir);
+        const mediaFiles = files.filter(file => {
+            const ext = path.extname(file).toLowerCase();
+            return ['.jpg', '.jpeg', '.png', '.gif', '.mp4', '.webm'].includes(ext);
+        });
+        res.json({ files: mediaFiles });
+    } catch (error) {
+        console.error('Erro ao ler diretório de mídia:', error);
+        res.status(500).json({ error: 'Erro ao listar arquivos' });
+    }
+});
+
+// Rota para upload de arquivos
+app.post('/api/upload_arquivo', upload.single('file'), (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+        }
+        res.json({ 
+            success: true, 
+            filename: req.file.filename,
+            message: 'Arquivo enviado com sucesso'
+        });
+    } catch (error) {
+        console.error('Error uploading file:', error);
+        res.status(500).json({ error: 'Erro ao fazer upload do arquivo' });
+    }
+});
+
+// Rota para deletar arquivo
+app.delete('/api/deletar_arquivo/:filename', (req, res) => {
+    const { filename } = req.params;
+    const filePath = path.join(__dirname, APP_CONFIG.uploadDir, filename);
+    
+    try {
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: 'Arquivo não encontrado' });
+        }
+        
+        fs.unlinkSync(filePath);
+        res.json({ success: true, message: 'Arquivo deletado com sucesso' });
+    } catch (error) {
+        console.error('Error deleting file:', error);
+        res.status(500).json({ error: 'Erro ao deletar arquivo' });
+    }
+});
+
+// Rota para visualizar logs de requisições
+app.get('/api/monitor', (req, res) => {
+    res.json({
+        totalRequests: requestLogs.length,
+        requests: requestLogs,
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        timestamp: new Date().toISOString()
     });
 });
 
-// Rota para servir arquivos estáticos do diretório midiacarnes
-app.use('/midiacarnes', express.static(path.join(__dirname, APP_CONFIG.uploadDirCarnes)));
+// Rota para limpar logs
+app.post('/api/monitor/clear', (req, res) => {
+    requestLogs.length = 0;
+    res.json({ message: 'Logs limpos com sucesso' });
+});
 
-// Suas rotas e lógica continuam normalmente abaixo...
+// Rota para obter todos os produtos da tabela 'carnes'
+app.get('/api/carnes/todos', async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                codigo,
+                descricao,
+                venda,
+                corte
+            FROM carnes
+        `;
+
+        const result = await pool.query(query);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Erro ao buscar todos os produtos:', {
+            code: err.code,
+            message: err.message,
+            stack: err.stack
+        });
+        res.status(500).json({ 
+            error: 'Erro ao buscar produtos', 
+            details: err.message,
+            code: err.code
+        });
+    }
+});
+
+// Configuração dos diretórios estáticos
+app.use('/midia', express.static(path.join(__dirname, APP_CONFIG.uploadDir)));
+app.use('/midiacarnes', express.static(path.join(__dirname, APP_CONFIG.uploadDirCarnes)));
 
 // Tratamento de erros
 app.use((err, req, res, next) => {
